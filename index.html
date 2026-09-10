@@ -59,6 +59,11 @@ input[type=number]{font-size:22px;font-variant-numeric:tabular-nums}
 .calc .big span{font-size:16px;font-weight:500;color:var(--muted);margin-left:4px}
 .calc .sum{font-size:18px;font-weight:600;color:var(--blue);font-variant-numeric:tabular-nums}
 .calc .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
+.split{flex-basis:100%;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px}
+.pill{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--bg)}
+.pill button{border:0;background:none;width:48px;height:44px;font:inherit;font-size:24px;color:var(--blue);line-height:1}
+.pill span{min-width:52px;text-align:center;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.per{text-align:right}.per b{display:block;font-size:20px;color:var(--blue);font-variant-numeric:tabular-nums}
 
 .btn{display:block;width:100%;border:0;border-radius:var(--r);padding:15px;font:inherit;font-size:17px;font-weight:600;margin-top:14px;min-height:52px}
 .btn.p{background:var(--blue);color:#fff}
@@ -127,9 +132,13 @@ table.p td:last-child{text-align:right}
 
 <!-- ЖУРНАЛ -->
 <section class="screen" id="s-log">
-  <div class="calc" style="margin-top:4px">
-    <div><div class="lbl">Всего за объект</div><div class="big" id="t-area">0<span>м²</span></div></div>
+  <div class="calc" style="margin-top:4px;flex-wrap:wrap;gap:12px">
+    <div><div class="lbl">Заработано сегодня</div><div class="big" id="t-area">0<span>м²</span></div></div>
     <div style="text-align:right"><div class="lbl">Сумма</div><div class="sum" id="t-sum">0 ₾</div></div>
+    <div class="split">
+      <div class="pill"><button type="button" id="sp-m">−</button><span id="sp-n">÷1</span><button type="button" id="sp-p">+</button></div>
+      <div class="per"><span class="lbl">На человека</span><b id="sp-per">0 ₾</b></div>
+    </div>
   </div>
   <div id="log"></div>
 </section>
@@ -206,7 +215,7 @@ table.p td:last-child{text-align:right}
 // ---------- данные ----------
 const KEY='gkl_rotana_v1';
 const DEF={
-  name:'', h:2.9, entries:[], partners:[], teams:{},
+  name:'', h:2.9, entries:[], partners:[], teams:{}, split:{},
   prices:{wWool:0.8,wGkl:4.8,iProf:6.6, cFrame:10,cGkl:5, kFrame:7,kWool:0.8,kGkl:6.1,
           iShaft:230,iPly:30,iInst:100,iFire:150},
   walls:{'GW-01':{sides:2},'GW-02':{sides:2},'GW-07':{sides:2},'GW-10':{sides:1},'GW-13':{sides:1}}
@@ -355,11 +364,15 @@ function descr(e){
   if(t.kind==='item')return e.qty+' '+t.u;
   return fm(e.len)+' × '+fm(e.h)+' м';
 }
+function splitN(){const td=today();return S.split[td]||(1+(S.teams[td]||[]).length)||1;}
+$('sp-m').onclick=()=>{S.split[today()]=Math.max(1,splitN()-1);save();renderLog();};
+$('sp-p').onclick=()=>{S.split[today()]=Math.min(20,splitN()+1);save();renderLog();};
 function renderLog(){
   const el=$('log');el.innerHTML='';
   const es=[...S.entries].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
-  let ta=0,ts=0;S.entries.forEach(e=>{if(T(e.type).kind!=='item')ta+=e.area;ts+=e.sum;});
+  const td=today();let ta=0,ts=0;S.entries.filter(e=>e.date===td).forEach(e=>{if(T(e.type).kind!=='item')ta+=e.area;ts+=e.sum;});
   $('t-area').innerHTML=fm(ta)+'<span>м²</span>';$('t-sum').textContent=fm(ts)+' ₾';
+  const n=splitN();$('sp-n').textContent='÷'+n;$('sp-per').textContent=fm(ts/n)+' ₾';
   if(!es.length){el.innerHTML='<div class="empty">Записей пока нет. Первая — на вкладке «Ввод».</div>';return;}
   let cur=null,card=null;
   es.forEach(e=>{
