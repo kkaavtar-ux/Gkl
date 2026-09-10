@@ -376,9 +376,9 @@ function renderLog(){
       d.innerHTML=`<h3><span>${fd(cur)}</span><span>${fm(s)} ₾</span></h3>`;card=document.createElement('div');card.className='card';d.appendChild(card);el.appendChild(d);}
     const t=T(e.type);const row=document.createElement('div');row.className='ent';row.style.setProperty('--c',t.c||'var(--grey)');
     row.innerHTML=`<div class="bar"></div><div><div class="t">№${e.room} · ${e.type}</div><div class="m">${works(e)?works(e)+' · ':''}${descr(e)}${e.note?' · '+e.note:''}</div></div>
-      <div class="n"><b>${t.kind==='item'?e.qty+' '+t.u:fm(e.area)+' м²'}</b><span>${fm(e.sum)} ₾</span></div><div class="x"><button class="mini ed">Изменить</button> &nbsp; <button class="mini">Удалить</button></div>`;
+      <div class="n"><b>${t.kind==='item'?e.qty+' '+t.u:fm(e.area)+' м²'}</b><span>${fm(e.sum)} ₾</span></div><div class="x"><button class="mini ed">Изменить</button> &nbsp; <button class="mini del">Удалить</button></div>`;
     row.querySelector('.ed').onclick=()=>startEdit(e);
-    const del=row.querySelector('.mini');let armed=false,tm;
+    const del=row.querySelector('.del');let armed=false,tm;
     del.onclick=()=>{
       if(!armed){armed=true;del.textContent='Точно удалить?';del.style.fontWeight='700';tm=setTimeout(()=>{armed=false;del.textContent='Удалить';del.style.fontWeight='';},3000);return;}
       clearTimeout(tm);S.entries=S.entries.filter(x=>x.id!==e.id);save();renderLog();toast('Запись удалена');
