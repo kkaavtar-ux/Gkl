@@ -44,6 +44,16 @@ input[type=number]{font-size:22px;font-variant-numeric:tabular-nums}
 .chip.gw{border-left:5px solid var(--c,var(--grey))}
 .chip.gw.on{border-left-color:#fff}
 
+.trow{margin-top:8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.trow>button{width:100%;text-align:left;border:0;background:none;font:inherit;font-size:16px;padding:13px 14px 13px 16px;border-left:5px solid var(--c,var(--grey));color:var(--ink);min-height:48px;display:flex;justify-content:space-between;align-items:center}
+.trow.on>button{background:var(--blue);color:#fff;border-left-color:#fff;font-weight:600}
+.trow .blk{display:none;padding:4px 14px 14px;border-top:1px solid var(--line)}
+.trow.on .blk{display:block}
+.trow .blk label.f{margin-top:10px}
+.trow .sub{font-size:13px;color:var(--muted);font-weight:400}
+.trow.on .sub{color:rgba(255,255,255,.75)}
+.trow .val{font-size:14px;font-weight:600;color:var(--blue);margin-left:8px;white-space:nowrap}
+.trow.on .val{color:#fff}
 .calc{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-end}
 .calc .big{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
 .calc .big span{font-size:16px;font-weight:500;color:var(--muted);margin-left:4px}
@@ -101,39 +111,14 @@ table.p td:last-child{text-align:right}
   <label class="f">Номер помещения</label>
   <input type="text" id="f-room" inputmode="numeric" placeholder="например 412" autocomplete="off">
 
-  <label class="f">Наименование</label>
-  <div class="chips" id="f-type"></div>
-
-  <div id="stage-wrap">
-    <label class="f">Что сделано</label>
-    <div class="chips" id="f-frame"></div>
-    <label class="f" id="l-wool">Вата</label>
-    <div class="chips" id="f-wool"></div>
-    <label class="f">ГКЛ</label>
-    <div class="chips" id="f-gkl"></div>
-  </div>
-
-  <div id="sides-wrap" style="display:none">
-    <label class="f">Стороны обшивки</label>
-    <div class="chips" id="f-sides"></div>
-  </div>
-
-  <div id="dims-wrap">
-    <div class="row">
-      <div><label class="f" id="l-len">Длина, м</label><input type="number" id="f-len" inputmode="decimal" step="0.1" min="0" placeholder="0.0"></div>
-      <div><label class="f" id="l-h">Высота, м</label><input type="number" id="f-h" inputmode="decimal" step="0.1" min="0"></div>
-    </div>
-  </div>
-  <div id="qty-wrap" style="display:none">
-    <label class="f" id="l-qty">Количество, шт</label>
-    <input type="number" id="f-qty" inputmode="numeric" step="1" min="1" value="1">
-  </div>
+  <label class="f">Наименование — нажмите всё, что делали</label>
+  <div id="f-types"></div>
 
   <label class="f">Примечание (необязательно)</label>
   <input type="text" id="f-note" placeholder="над дверью, откос окна…">
 
   <div class="calc">
-    <div><div class="lbl" id="c-lbl">Площадь</div><div class="big" id="c-area">0<span>м²</span></div></div>
+    <div><div class="lbl">Площадь</div><div class="big" id="c-area">0<span>м²</span></div></div>
     <div style="text-align:right"><div class="lbl">Сумма</div><div class="sum" id="c-sum">0 ₾</div></div>
   </div>
   <button class="btn p" id="b-save" disabled>Записать</button>
@@ -183,11 +168,8 @@ table.p td:last-child{text-align:right}
 
   <h2>Прайс, ₾</h2>
   <table class="p" id="o-prices"></table>
-  <p class="hint">ГКЛ стен и колонн — цена за м² стороны за 2 слоя, за 1 слой — половина (2.4). Вата — цена за 1 слой, 2 слоя — вдвое.</p>
+  <p class="hint">ГКЛ стен и колонн — цена за м² за 2 слоя, за 1 слой — половина (2.4). Считается с одной стороны. Вата — цена за 1 слой, 2 слоя — вдвое.</p>
 
-  <h2>Типы стен</h2>
-  <table class="p" id="o-walls"></table>
-  <p class="hint">Стороны 2 — стена обшивается с двух сторон, 1 — облицовка.</p>
 
   <h2>Резервная копия</h2>
   <button class="btn s" id="b-export">Сохранить копию в файл</button>
@@ -239,13 +221,13 @@ const TYPES=[
   {id:'GW-07',kind:'wall',sub:'W112',c:'var(--green)'},
   {id:'GW-10',kind:'wall',sub:'W626',c:'var(--green)'},
   {id:'GW-13',kind:'wall',sub:'W623',c:'var(--green)'},
-  {id:'Колонны/откосы',kind:'col',c:'var(--yellow)'},
-  {id:'Потолок',kind:'ceil',c:'var(--red)'},
+  {id:'Колонны/откосы',kind:'col',sub:'каркас 7 · вата 0.8 · ГКЛ 6.1',c:'var(--yellow)'},
+  {id:'Потолок',kind:'ceil',sub:'каркас 10 · ГКЛ 5',c:'var(--red)'},
   {id:'Монтаж профиля/перемычек',kind:'item',p:'iProf',u:'шт'},
   {id:'Пож. шахта',kind:'item',p:'iShaft',u:'шт'},
   {id:'Закладные из фанеры',kind:'item',p:'iPly',u:'номер'},
   {id:'Инсталляция (каркас+ГКЛ)',kind:'item',p:'iInst',u:'шт'},
-  {id:'Противопожарная защита',kind:'item',p:'iFire',u:'шт'},
+  {id:'Пожарная изоляция',kind:'item',p:'iFire',u:'номер'},
 ];
 const T=id=>TYPES.find(t=>t.id===id);
 const has=k=>k==='wall'||k==='col'||k==='ceil';
@@ -257,7 +239,7 @@ function calc(e){
   const area=(e.len||0)*(e.h||0);let sum=0;
   if(t.kind==='wall'){
     sum+=area*P.wWool*(e.wool||0);
-    sum+=area*(e.sides||1)*(P.wGkl/2)*(e.gkl||0);}
+    sum+=area*(P.wGkl/2)*(e.gkl||0);}
   if(t.kind==='col'){
     if(e.frame)sum+=area*P.kFrame;
     sum+=area*P.kWool*(e.wool||0);
@@ -271,79 +253,77 @@ function done(e){return !!(e.frame||e.wool||e.gkl);}
 
 // ---------- ввод ----------
 const $=id=>document.getElementById(id);
-let F={type:null,frame:0,wool:0,gkl:0,sides:1};let editId=null;
+let F={};let editId=null;   // F[typeId] = {len,h,qty,frame,wool,gkl}
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
-$('f-date').value=today();$('f-h').value=S.h;
-
-function chipRow(el,items,cur,on,dec){
+$('f-date').value=today();
+function blank(t){return {len:'',h:S.h,qty:1,frame:0,wool:0,gkl:0};}
+function chipRow(el,items,cur,on){
   el.innerHTML='';
-  items.forEach(it=>{
-    const b=document.createElement('button');b.type='button';b.className='chip'+(dec?' gw':'')+(it.id===cur?' on':'');
-    b.textContent=it.label||it.id;if(it.c)b.style.setProperty('--c',it.c);
-    b.onclick=()=>{on(it.id);};el.appendChild(b);
-  });
+  items.forEach(it=>{const b=document.createElement('button');b.type='button';b.className='chip'+(it.id===cur?' on':'');b.textContent=it.label;b.onclick=()=>on(it.id);el.appendChild(b);});
 }
-function renderType(){chipRow($('f-type'),TYPES.map(t=>({id:t.id,c:t.c})),F.type,id=>{F.type=id;F.frame=0;F.wool=0;F.gkl=0;F.sides=1;renderForm();},true);}
 function renderForm(){
-  const t=T(F.type);
-  renderType();
-  const kind=t?t.kind:null;
-  $('stage-wrap').style.display=has(kind)?'':'none';
-  const frameOn=kind==='col'||kind==='ceil';
-  $('f-frame').style.display=frameOn?'':'none';
-  if(!frameOn)F.frame=0;
-  chipRow($('f-frame'),[{id:0,label:'Каркас не делал'},{id:1,label:'Каркас'}],F.frame,id=>{F.frame=id;renderForm();});
-  const woolOn=kind==='wall'||kind==='col';
-  $('l-wool').style.display=woolOn?'':'none';$('f-wool').style.display=woolOn?'':'none';
-  if(!woolOn)F.wool=0;
-  chipRow($('f-wool'),[{id:0,label:'Нет'},{id:1,label:'1 слой'},{id:2,label:'2 слоя'}],F.wool,id=>{F.wool=id;renderForm();});
-  const gklMax=kind==='ceil'?1:2;if(F.gkl>gklMax)F.gkl=gklMax;
-  chipRow($('f-gkl'),[{id:0,label:'Нет'},{id:1,label:'1 слой'},{id:2,label:'2 слоя'}].slice(0,gklMax+1),F.gkl,id=>{F.gkl=id;renderForm();});
-  const showSides=kind==='wall'&&F.gkl>0&&S.walls[F.type].sides===2;
-  $('sides-wrap').style.display=showSides?'':'none';
-  if(!showSides)F.sides=1;
-  chipRow($('f-sides'),[{id:1,label:'Одна'},{id:2,label:'Обе'}],F.sides,id=>{F.sides=id;renderForm();});
-  $('dims-wrap').style.display=kind==='item'?'none':'';
-  $('qty-wrap').style.display=kind==='item'?'':'none';
-  $('l-h').textContent=kind==='ceil'?'Ширина, м':'Высота, м';
-  $('c-lbl').textContent=kind==='item'?'Количество':'Площадь';
-  if(kind==='item')$('l-qty').textContent=t.u==='номер'?'Количество номеров':'Количество, шт';
+  const host=$('f-types');host.innerHTML='';
+  TYPES.forEach(t=>{
+    if(editId&&!F[t.id])return;             // при изменении показываем только эту стену
+    const on=!!F[t.id];const b=F[t.id];
+    const row=document.createElement('div');row.className='trow'+(on?' on':'');row.style.setProperty('--c',t.c||'var(--grey)');
+    const r=on?calc(entryOf(t.id)):null;
+    const val=on?(t.kind==='item'?(b.qty||0)+' '+t.u:fm(r.area)+' м² · '+fm(r.sum)+' ₾'):'';
+    row.innerHTML=`<button type="button"><span>${t.id}${t.sub?' <span class="sub">'+t.sub+'</span>':''}</span><span class="val">${val}</span></button><div class="blk"></div>`;
+    row.querySelector('button').onclick=()=>{if(editId)return;if(on)delete F[t.id];else F[t.id]=blank(t);renderForm();
+      if(!on){const f=row.querySelector('input');}};
+    if(on){
+      const blk=row.querySelector('.blk');
+      if(t.kind==='item'){
+        blk.innerHTML=`<label class="f">${t.u==='номер'?'Количество номеров':'Количество, шт'}</label><input type="number" inputmode="numeric" step="1" min="1" data-k="qty" value="${b.qty}">`;
+      }else{
+        blk.innerHTML=`<div class="row"><div><label class="f">Длина, м</label><input type="number" inputmode="decimal" step="0.1" min="0" placeholder="0.0" data-k="len" value="${b.len}"></div>
+          <div><label class="f">${t.kind==='ceil'?'Ширина, м':'Высота, м'}</label><input type="number" inputmode="decimal" step="0.1" min="0" data-k="h" value="${b.h}"></div></div>
+          ${t.kind!=='wall'?'<label class="f">Каркас</label><div class="chips" data-c="frame"></div>':''}
+          ${t.kind!=='ceil'?'<label class="f">Вата</label><div class="chips" data-c="wool"></div>':''}
+          <label class="f">ГКЛ</label><div class="chips" data-c="gkl"></div>`;
+        const opts={frame:[{id:0,label:'Не делал'},{id:1,label:'Каркас'}],wool:[{id:0,label:'Нет'},{id:1,label:'1 слой'},{id:2,label:'2 слоя'}],
+          gkl:t.kind==='ceil'?[{id:0,label:'Нет'},{id:1,label:'1 слой'}]:[{id:0,label:'Нет'},{id:1,label:'1 слой'},{id:2,label:'2 слоя'}]};
+        blk.querySelectorAll('.chips').forEach(el=>{const k=el.dataset.c;chipRow(el,opts[k],b[k],v=>{b[k]=v;renderForm();});});
+      }
+      blk.querySelectorAll('input').forEach(inp=>inp.oninput=()=>{b[inp.dataset.k]=inp.value;recalc();row.querySelector('.val').textContent=(()=>{const r=calc(entryOf(t.id));return t.kind==='item'?(b.qty||0)+' '+t.u:fm(r.area)+' м² · '+fm(r.sum)+' ₾';})();});
+    }
+    host.appendChild(row);
+  });
   recalc();
 }
-function draft(){
-  return {date:$('f-date').value,room:$('f-room').value.trim(),type:F.type,frame:F.frame,wool:F.wool,gkl:F.gkl,sides:F.sides,
-    len:+$('f-len').value||0,h:+$('f-h').value||0,qty:+$('f-qty').value||0,note:$('f-note').value.trim()};
-}
+function entryOf(id){const b=F[id];return {type:id,len:+b.len||0,h:+b.h||0,qty:+b.qty||0,frame:b.frame,wool:b.wool,gkl:b.gkl};}
+function validOf(id){const t=T(id),e=entryOf(id);return t.kind==='item'?e.qty>0:(e.len>0&&e.h>0&&done(e));}
 function recalc(){
-  const e=draft(),t=T(e.type),r=calc(e);
-  $('c-area').innerHTML=(t&&t.kind==='item'?r.area:fm(r.area))+'<span>'+(t&&t.kind==='item'?t.u:'м²')+'</span>';
-  $('c-sum').textContent=fm(r.sum)+' ₾';
-  const ok=t&&e.room&&e.date&&(t.kind==='item'?e.qty>0:(e.len>0&&e.h>0&&done(e)));
+  const ids=Object.keys(F);let area=0,sum=0;
+  ids.forEach(id=>{const r=calc(entryOf(id));if(T(id).kind!=='item')area+=r.area;sum+=r.sum;});
+  $('c-area').innerHTML=fm(area)+'<span>м²</span>';$('c-sum').textContent=fm(sum)+' ₾';
+  const ok=ids.length&&$('f-room').value.trim()&&$('f-date').value&&ids.every(validOf);
   $('b-save').disabled=!ok;
 }
-['f-len','f-h','f-qty','f-room','f-date','f-note'].forEach(id=>$(id).addEventListener('input',recalc));
+['f-room','f-date','f-note'].forEach(id=>$(id).addEventListener('input',recalc));
 $('b-save').onclick=()=>{
-  const e=draft();const r=calc(e);
-  if(editId){const i=S.entries.findIndex(x=>x.id===editId);
-    if(i>=0)S.entries[i]={...S.entries[i],...e,area:r.area,sum:r.sum};
+  const date=$('f-date').value,room=$('f-room').value.trim(),note=$('f-note').value.trim();
+  const ids=Object.keys(F);
+  if(editId){const id=ids[0];const e=entryOf(id);const r=calc(e);const i=S.entries.findIndex(x=>x.id===editId);
+    if(i>=0)S.entries[i]={...S.entries[i],...e,date,room,note,area:r.area,sum:r.sum};
     save();toast('Запись изменена');endEdit();go('log');return;}
-  S.entries.push({id:Date.now()+''+Math.random().toString(36).slice(2,6),worker:S.name,...e,area:r.area,sum:r.sum});
-  save();
-  toast('Записано: '+e.type+' — '+works(e)+' — '+(T(e.type).kind==='item'?e.qty+' шт':fm(r.area)+' м²'));
-  // оставляем номер, тип и этап — следующая стена часто в том же помещении
-  $('f-len').value='';$('f-note').value='';$('f-qty').value=1;$('f-h').value=S.h;
-  recalc();$('f-len').focus();
+  let n=0;
+  ids.forEach(id=>{const e=entryOf(id);const r=calc(e);
+    S.entries.push({id:Date.now()+''+Math.random().toString(36).slice(2,6),worker:S.name,date,room,note,...e,area:r.area,sum:r.sum});n++;});
+  save();toast('Записано: '+n+' '+(n===1?'позиция':n<5?'позиции':'позиций')+' в №'+room);
+  F={};$('f-note').value='';renderForm();
 };
 function startEdit(e){
   editId=e.id;
-  $('f-date').value=e.date;$('f-room').value=e.room;$('f-len').value=e.len||'';$('f-h').value=e.h||S.h;$('f-qty').value=e.qty||1;$('f-note').value=e.note||'';
-  F={type:e.type,frame:e.frame||0,wool:e.wool||0,gkl:e.gkl||0,sides:e.sides||1};
+  $('f-date').value=e.date;$('f-room').value=e.room;$('f-note').value=e.note||'';
+  F={};F[e.type]={len:e.len||'',h:e.h||S.h,qty:e.qty||1,frame:e.frame||0,wool:e.wool||0,gkl:e.gkl||0};
   $('b-save').textContent='Сохранить изменения';$('b-cancel').style.display='';
   go('add');$('ttl').textContent='Изменить запись';renderForm();
 }
 function endEdit(){
   editId=null;$('b-save').textContent='Записать';$('b-cancel').style.display='none';$('ttl').textContent=TT.add;
-  $('f-len').value='';$('f-note').value='';$('f-qty').value=1;$('f-h').value=S.h;$('f-date').value=today();recalc();
+  F={};$('f-note').value='';$('f-date').value=today();renderForm();
 }
 $('b-cancel').onclick=()=>{endEdit();go('log');};
 
@@ -355,7 +335,7 @@ function works(e){
   const p=[];
   if(e.frame)p.push('каркас');
   if(e.wool)p.push('вата '+e.wool+' сл.');
-  if(e.gkl)p.push('ГКЛ '+e.gkl+' сл.'+(t.kind==='wall'&&S.walls[e.type].sides===2?(e.sides===2?' обе стороны':' одна сторона'):''));
+  if(e.gkl)p.push('ГКЛ '+e.gkl+' сл.');
   return p.join(' + ');
 }
 function descr(e){
@@ -451,14 +431,11 @@ $('b-copy').onclick=async()=>{
 const PL=[['wWool','Стены · вата, м² (1 слой)'],['wGkl','Стены · ГКЛ, м² стороны (2 слоя)'],
   ['kFrame','Колонны/откосы · каркас, м²'],['kWool','Колонны/откосы · вата, м²'],['kGkl','Колонны/откосы · ГКЛ, м² (2 слоя)'],
   ['cFrame','Потолок · каркас, м²'],['cGkl','Потолок · ГКЛ, м² (1 слой)'],
-  ['iProf','Монтаж профиля/перемычек, шт'],['iShaft','Пож. шахта, шт'],['iPly','Закладные из фанеры, за номер'],['iInst','Инсталляция (каркас+ГКЛ), шт'],['iFire','Противопожарная защита, шт']];
+  ['iProf','Монтаж профиля/перемычек, шт'],['iShaft','Пож. шахта, шт'],['iPly','Закладные из фанеры, за номер'],['iInst','Инсталляция (каркас+ГКЛ), шт'],['iFire','Пожарная изоляция, за номер']];
 function renderSet(){
   $('o-name').value=S.name;$('o-h').value=S.h;
   $('o-prices').innerHTML=PL.map(([k,l])=>`<tr><td>${l}</td><td><input type="number" inputmode="decimal" step="0.1" data-k="${k}" value="${S.prices[k]}"></td></tr>`).join('');
   $('o-prices').querySelectorAll('input').forEach(i=>i.oninput=()=>{S.prices[i.dataset.k]=+i.value||0;save();});
-  $('o-walls').innerHTML='<tr><td></td><td>Стороны ГКЛ</td></tr>'+Object.keys(S.walls).map(w=>`<tr><td>${w} <span class="hint">${T(w).sub}</span></td>
-    <td><input type="number" inputmode="numeric" step="1" min="1" max="2" data-w="${w}" data-k="sides" value="${S.walls[w].sides}"></td></tr>`).join('');
-  $('o-walls').querySelectorAll('input').forEach(i=>{i.style.width='56px';i.oninput=()=>{S.walls[i.dataset.w][i.dataset.k]=+i.value||0;save();};});
 }
 $('o-name').oninput=e=>{S.name=e.target.value.trim();save();$('who').textContent=S.name;};
 $('o-h').oninput=e=>{S.h=+e.target.value||2.9;save();};
