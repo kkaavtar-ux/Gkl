@@ -68,7 +68,8 @@ input[type=number]{font-size:22px;font-variant-numeric:tabular-nums}
 .ent .n b{display:block;font-size:17px}
 .ent .n span{font-size:12px;color:var(--muted)}
 .ent .x{grid-column:3;text-align:right}
-.mini{background:none;border:0;color:var(--danger);font:inherit;font-size:13px;padding:4px 0}
+.mini{background:none;border:0;color:var(--danger);font:inherit;font-size:13px;padding:6px 0;min-height:32px}
+.mini.ed{color:var(--blue)}
 .empty{padding:28px 16px;text-align:center;color:var(--muted)}
 
 pre.rep{white-space:pre-wrap;word-break:break-word;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;font:15px/1.5 ui-monospace,Menlo,Consolas,monospace;margin:10px 0 0;min-height:120px}
@@ -136,6 +137,7 @@ table.p td:last-child{text-align:right}
     <div style="text-align:right"><div class="lbl">Сумма</div><div class="sum" id="c-sum">0 ₾</div></div>
   </div>
   <button class="btn p" id="b-save" disabled>Записать</button>
+  <button class="btn s" id="b-cancel" style="display:none">Отменить изменение</button>
 </section>
 
 <!-- ЖУРНАЛ -->
@@ -159,6 +161,13 @@ table.p td:last-child{text-align:right}
   <div class="row" id="r-custom" style="display:none;margin-top:10px">
     <input type="date" id="r-from"><input type="date" id="r-to">
   </div>
+  <div id="team-wrap">
+    <label class="f">С кем работали в этот день</label>
+    <div class="chips" id="r-team"></div>
+    <div class="row" style="margin-top:8px"><input type="text" id="r-newp" placeholder="Имя напарника" autocomplete="off"><button class="chip" id="r-addp" style="flex:0 0 auto">Добавить</button></div>
+    <p class="hint">Нажмите на имя, чтобы добавить в бригаду или убрать. Долгое нажатие удаляет имя из списка.</p>
+  </div>
+  <p class="hint" id="team-hint" style="display:none">Бригада задаётся по дням — выберите «Сегодня» или «Вчера».</p>
   <div class="sw"><span>Показывать суммы в лари</span><input type="checkbox" id="r-money"></div>
   <pre class="rep" id="r-text"></pre>
   <button class="btn p" id="b-copy">Скопировать отчёт</button>
@@ -215,7 +224,7 @@ table.p td:last-child{text-align:right}
 // ---------- данные ----------
 const KEY='gkl_rotana_v1';
 const DEF={
-  name:'', h:2.9, entries:[],
+  name:'', h:2.9, entries:[], partners:[], teams:{},
   prices:{wWool:0.8,wGkl:4.8,iProf:6.6, cFrame:10,cGkl:5, kFrame:7,kWool:0.8,kGkl:6.1,
           iShaft:230,iPly:30,iInst:100,iFire:150},
   walls:{'GW-01':{sides:2},'GW-02':{sides:2},'GW-07':{sides:2},'GW-10':{sides:1},'GW-13':{sides:1}}
@@ -262,7 +271,7 @@ function done(e){return !!(e.frame||e.wool||e.gkl);}
 
 // ---------- ввод ----------
 const $=id=>document.getElementById(id);
-let F={type:null,frame:0,wool:0,gkl:0,sides:1};
+let F={type:null,frame:0,wool:0,gkl:0,sides:1};let editId=null;
 const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10);};
 $('f-date').value=today();$('f-h').value=S.h;
 
@@ -315,6 +324,9 @@ function recalc(){
 ['f-len','f-h','f-qty','f-room','f-date','f-note'].forEach(id=>$(id).addEventListener('input',recalc));
 $('b-save').onclick=()=>{
   const e=draft();const r=calc(e);
+  if(editId){const i=S.entries.findIndex(x=>x.id===editId);
+    if(i>=0)S.entries[i]={...S.entries[i],...e,area:r.area,sum:r.sum};
+    save();toast('Запись изменена');endEdit();go('log');return;}
   S.entries.push({id:Date.now()+''+Math.random().toString(36).slice(2,6),worker:S.name,...e,area:r.area,sum:r.sum});
   save();
   toast('Записано: '+e.type+' — '+works(e)+' — '+(T(e.type).kind==='item'?e.qty+' шт':fm(r.area)+' м²'));
@@ -322,6 +334,18 @@ $('b-save').onclick=()=>{
   $('f-len').value='';$('f-note').value='';$('f-qty').value=1;$('f-h').value=S.h;
   recalc();$('f-len').focus();
 };
+function startEdit(e){
+  editId=e.id;
+  $('f-date').value=e.date;$('f-room').value=e.room;$('f-len').value=e.len||'';$('f-h').value=e.h||S.h;$('f-qty').value=e.qty||1;$('f-note').value=e.note||'';
+  F={type:e.type,frame:e.frame||0,wool:e.wool||0,gkl:e.gkl||0,sides:e.sides||1};
+  $('b-save').textContent='Сохранить изменения';$('b-cancel').style.display='';
+  go('add');$('ttl').textContent='Изменить запись';renderForm();
+}
+function endEdit(){
+  editId=null;$('b-save').textContent='Записать';$('b-cancel').style.display='none';$('ttl').textContent=TT.add;
+  $('f-len').value='';$('f-note').value='';$('f-qty').value=1;$('f-h').value=S.h;$('f-date').value=today();recalc();
+}
+$('b-cancel').onclick=()=>{endEdit();go('log');};
 
 // ---------- журнал ----------
 function fm(n){return (Math.round(n*10)/10).toLocaleString('ru-RU',{maximumFractionDigits:1});}
@@ -352,7 +376,8 @@ function renderLog(){
       d.innerHTML=`<h3><span>${fd(cur)}</span><span>${fm(s)} ₾</span></h3>`;card=document.createElement('div');card.className='card';d.appendChild(card);el.appendChild(d);}
     const t=T(e.type);const row=document.createElement('div');row.className='ent';row.style.setProperty('--c',t.c||'var(--grey)');
     row.innerHTML=`<div class="bar"></div><div><div class="t">№${e.room} · ${e.type}</div><div class="m">${works(e)?works(e)+' · ':''}${descr(e)}${e.note?' · '+e.note:''}</div></div>
-      <div class="n"><b>${t.kind==='item'?e.qty+' '+t.u:fm(e.area)+' м²'}</b><span>${fm(e.sum)} ₾</span></div><div class="x"><button class="mini">Удалить</button></div>`;
+      <div class="n"><b>${t.kind==='item'?e.qty+' '+t.u:fm(e.area)+' м²'}</b><span>${fm(e.sum)} ₾</span></div><div class="x"><button class="mini ed">Изменить</button> &nbsp; <button class="mini">Удалить</button></div>`;
+    row.querySelector('.ed').onclick=()=>startEdit(e);
     const del=row.querySelector('.mini');let armed=false,tm;
     del.onclick=()=>{
       if(!armed){armed=true;del.textContent='Точно удалить?';del.style.fontWeight='700';tm=setTimeout(()=>{armed=false;del.textContent='Удалить';del.style.fontWeight='';},3000);return;}
@@ -374,12 +399,13 @@ function range(){
 function report(){
   const [a,b]=range(),money=$('r-money').checked;
   const es=S.entries.filter(e=>e.date>=a&&e.date<=b).sort((x,y)=>x.date.localeCompare(y.date)||x.room.localeCompare(y.room,'ru',{numeric:true}));
-  const head='Отчёт '+(a===b?fd(a):fd(a)+' – '+fd(b))+' — '+(S.name||'без имени')+'\nОбъект Rotana Gonio\n';
+  const tm=d=>{const t=teamOf(d);return t.length?' + '+t.join(', '):'';};
+  const head='Отчёт '+(a===b?fd(a):fd(a)+' – '+fd(b))+' — '+(S.name||'без имени')+(a===b?tm(a):'')+'\nОбъект Rotana Gonio\n';
   if(!es.length)return head+'\nЗаписей за этот период нет.';
   let out=head,lastD=null,lastR=null,area=0,sum=0;
   es.forEach(e=>{
     const t=T(e.type);
-    if(a!==b&&e.date!==lastD){out+='\n'+fd(e.date)+'\n';lastD=e.date;lastR=null;}
+    if(a!==b&&e.date!==lastD){out+='\n'+fd(e.date)+(teamOf(e.date).length?' — бригада: '+S.name+', '+teamOf(e.date).join(', '):'')+'\n';lastD=e.date;lastR=null;}
     if(e.room!==lastR){out+='\nНомер '+e.room+'\n';lastR=e.room;}
     out+='• '+e.type+(works(e)?' — '+works(e):'')+' — '+descr(e)+(t.kind==='item'?'':' → '+fm(e.area)+' м²')+(e.note?' ('+e.note+')':'')+(money?' — '+fm(e.sum)+' ₾':'')+'\n';
     if(t.kind!=='item')area+=e.area;sum+=e.sum;
@@ -387,7 +413,34 @@ function report(){
   out+='\nИтого: '+fm(area)+' м², '+es.length+' поз.'+(money?', '+fm(sum)+' ₾':'');
   return out;
 }
-function renderRep(){$('r-text').textContent=report();}
+function teamOf(d){return S.teams[d]||[];}
+function renderTeam(){
+  const [a,b]=range();const single=a===b;
+  $('team-wrap').style.display=single?'':'none';$('team-hint').style.display=single?'none':'';
+  if(!single)return;
+  const el=$('r-team');el.innerHTML='';
+  if(!S.partners.length){el.innerHTML='<span class="hint">Список пуст — добавьте первое имя.</span>';return;}
+  const cur=teamOf(a);
+  S.partners.forEach(n=>{
+    const c=document.createElement('button');c.type='button';c.className='chip'+(cur.includes(n)?' on':'');c.textContent=n;
+    let lp;
+    c.onclick=()=>{const t=teamOf(a);S.teams[a]=t.includes(n)?t.filter(x=>x!==n):[...t,n];save();renderTeam();renderRep();};
+    const start=()=>{lp=setTimeout(()=>{lp=null;S.partners=S.partners.filter(x=>x!==n);Object.keys(S.teams).forEach(d=>S.teams[d]=S.teams[d].filter(x=>x!==n));save();renderTeam();renderRep();toast('Имя удалено из списка');},700);};
+    const stop=()=>{if(lp){clearTimeout(lp);}};
+    c.addEventListener('touchstart',start,{passive:true});c.addEventListener('touchend',stop);c.addEventListener('touchmove',stop);c.addEventListener('touchcancel',stop);
+    c.addEventListener('mousedown',start);c.addEventListener('mouseup',stop);c.addEventListener('mouseleave',stop);
+    c.addEventListener('contextmenu',ev=>ev.preventDefault());
+    el.appendChild(c);
+  });
+}
+$('r-addp').onclick=()=>{
+  const n=$('r-newp').value.trim();if(!n)return;
+  if(!S.partners.includes(n))S.partners.push(n);
+  const [a]=range();if(!teamOf(a).includes(n))S.teams[a]=[...teamOf(a),n];
+  $('r-newp').value='';save();renderTeam();renderRep();
+};
+$('r-newp').addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();$('r-addp').click();}});
+function renderRep(){renderTeam();$('r-text').textContent=report();}
 $('b-copy').onclick=async()=>{
   const txt=report();
   try{await navigator.clipboard.writeText(txt);toast('Скопировано');}
@@ -435,12 +488,13 @@ $('b-wipe').onclick=()=>{
 
 // ---------- общее ----------
 const TT={add:'Новая запись',log:'Журнал',rep:'Отчёт',set:'Настройки'};
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
-  const s=b.dataset.s;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+function go(s){const b=document.querySelector('.tabs button[data-s="'+s+'"]');
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('on',x.id==='s-'+s));
   $('ttl').textContent=TT[s];window.scrollTo(0,0);
   if(s==='log')renderLog();if(s==='rep')renderRep();if(s==='set')renderSet();
-});
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{if(editId&&b.dataset.s!=='add')endEdit();go(b.dataset.s);});
 let tt;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200);}
 $('who').textContent=S.name;
 if(!S.name){$('m-name').classList.add('on');$('m-name-ok').onclick=()=>{const v=$('m-name-in').value.trim();if(!v)return;S.name=v;save();$('who').textContent=v;$('m-name').classList.remove('on');};}
