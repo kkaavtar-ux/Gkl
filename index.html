@@ -155,6 +155,8 @@ table.p td:last-child{text-align:right}
   <div class="row" id="r-custom" style="display:none;margin-top:10px">
     <input type="date" id="r-from"><input type="date" id="r-to">
   </div>
+  <label class="f">Бригада</label>
+  <div class="chips" id="r-brig"></div>
   <div id="team-wrap">
     <label class="f">С кем работали в этот день</label>
     <div class="chips" id="r-team"></div>
@@ -165,7 +167,7 @@ table.p td:last-child{text-align:right}
   <div class="sw"><span>Показывать суммы в лари</span><input type="checkbox" id="r-money"></div>
   <pre class="rep" id="r-text"></pre>
   <button class="btn p" id="b-copy">Скопировать отчёт</button>
-  <p class="hint">Дальше вставьте текст в Telegram вручную.</p>
+  <p class="hint">Дальше вставьте текст в рабочий чат вручную.</p>
 </section>
 
 <!-- НАСТРОЙКИ -->
@@ -215,7 +217,7 @@ table.p td:last-child{text-align:right}
 // ---------- данные ----------
 const KEY='gkl_rotana_v1';
 const DEF={
-  name:'', h:2.9, entries:[], partners:[], teams:{}, split:{},
+  name:'', h:2.9, brig:0, entries:[], partners:[], teams:{}, split:{},
   prices:{wWool:0.8,wGkl:4.8,iProf:6.6, cFrame:10,cGkl:5, kFrame:7,kWool:0.8,kGkl:6.1,
           iShaft:230,iPly:30,iInst:100,iFire:150},
   walls:{'GW-01':{sides:2},'GW-02':{sides:2},'GW-07':{sides:2},'GW-10':{sides:1},'GW-13':{sides:1}}
@@ -403,20 +405,42 @@ function range(){
 }
 function report(){
   const [a,b]=range(),money=$('r-money').checked;
-  const es=S.entries.filter(e=>e.date>=a&&e.date<=b).sort((x,y)=>x.date.localeCompare(y.date)||x.room.localeCompare(y.room,'ru',{numeric:true}));
-  const tm=d=>{const t=teamOf(d);return t.length?' + '+t.join(', '):'';};
-  const head='Отчёт '+(a===b?fd(a):fd(a)+' – '+fd(b))+' — '+(S.name||'без имени')+(a===b?tm(a):'')+'\nОбъект Rotana Gonio\n';
-  if(!es.length)return head+'\nЗаписей за этот период нет.';
-  let out=head,lastD=null,lastR=null,area=0,sum=0;
-  es.forEach(e=>{
-    const t=T(e.type);
-    if(a!==b&&e.date!==lastD){out+='\n'+fd(e.date)+(teamOf(e.date).length?' — бригада: '+S.name+', '+teamOf(e.date).join(', '):'')+'\n';lastD=e.date;lastR=null;}
-    if(e.room!==lastR){out+='\nНомер '+e.room+'\n';lastR=e.room;}
-    out+='• '+e.type+(works(e)?' — '+works(e):'')+' — '+descr(e)+(t.kind==='item'?'':' → '+fm(e.area)+' м²')+(e.note?' ('+e.note+')':'')+(money?' — '+fm(e.sum)+' ₾':'')+'\n';
-    if(t.kind!=='item')area+=e.area;sum+=e.sum;
+  const es=S.entries.filter(e=>e.date>=a&&e.date<=b);
+  let out='Отчёт '+(a===b?fd(a):fd(a)+' – '+fd(b))+(S.brig?' — бригада №'+S.brig:'')+'\n';
+  const people=[S.name||'без имени',...(a===b?teamOf(a):[...new Set(es.map(e=>e.date).flatMap(d=>teamOf(d)))])];
+  out+=people.join(', ')+'\n';
+  if(!es.length)return out+'\nЗаписей за этот период нет.';
+  const rooms=[...new Set(es.map(e=>e.room))].sort((x,y)=>x.localeCompare(y,'ru',{numeric:true}));
+  out+='Работа в номерах: '+rooms.join(', ')+'\n';
+  let total=0;
+  TYPES.forEach(t=>{
+    const ts=es.filter(e=>e.type===t.id);if(!ts.length||t.kind==='item')return;
+    const g={};const add=(k,e)=>{g[k]=g[k]||{a:0,s:0};g[k].a+=e.area;};
+    ts.forEach(e=>{
+      if(e.frame)add('Каркас',e);
+      if(e.wool)add('Вата '+e.wool+(e.wool===1?' слой':' слоя'),e);
+      if(e.gkl)add('Гипс '+e.gkl+(e.gkl===1?' слой':' слоя'),e);
+    });
+    const order=k=>k.startsWith('Каркас')?0:k.startsWith('Гипс')?1:2;
+    out+='\n'+t.id+'\n';
+    Object.keys(g).sort((x,y)=>order(x)-order(y)||x.localeCompare(y)).forEach(k=>{out+=k+' '+fm(g[k].a)+' м2\n';});
+    if(money){const s=ts.reduce((z,e)=>z+e.sum,0);total+=s;out+='= '+fm(s)+' ₾\n';}
   });
-  out+='\nИтого: '+fm(area)+' м², '+es.length+' поз.'+(money?', '+fm(sum)+' ₾':'');
-  return out;
+  const items=es.filter(e=>T(e.type).kind==='item');
+  if(items.length){
+    out+='\nДопы:\n';
+    TYPES.filter(t=>t.kind==='item').forEach(t=>{
+      const ts=items.filter(e=>e.type===t.id);if(!ts.length)return;
+      const q=ts.reduce((z,e)=>z+e.qty,0);
+      const rs=[...new Set(ts.map(e=>e.room))].sort((x,y)=>x.localeCompare(y,'ru',{numeric:true}));
+      out+=t.id+' - '+q+' '+t.u+(t.u==='номер'?' ('+rs.join(', ')+')':'')+(money?' = '+fm(ts.reduce((z,e)=>z+e.sum,0))+' ₾':'')+'\n';
+      if(money)total+=ts.reduce((z,e)=>z+e.sum,0);
+    });
+  }
+  const notes=es.filter(e=>e.note).map(e=>'№'+e.room+' '+e.type+': '+e.note);
+  if(notes.length)out+='\nПримечания:\n'+notes.join('\n')+'\n';
+  if(money)out+='\nИтого: '+fm(total)+' ₾';
+  return out.trimEnd();
 }
 function teamOf(d){return S.teams[d]||[];}
 function renderTeam(){
@@ -445,7 +469,8 @@ $('r-addp').onclick=()=>{
   $('r-newp').value='';save();renderTeam();renderRep();
 };
 $('r-newp').addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();$('r-addp').click();}});
-function renderRep(){renderTeam();$('r-text').textContent=report();}
+function renderBrig(){chipRow($('r-brig'),[1,2,3,4,5,6,7,8].map(n=>({id:n,label:'№'+n})),S.brig,n=>{S.brig=S.brig===n?0:n;save();renderBrig();renderRep();});}
+function renderRep(){renderBrig();renderTeam();$('r-text').textContent=report();}
 $('b-copy').onclick=async()=>{
   const txt=report();
   try{await navigator.clipboard.writeText(txt);toast('Скопировано');}
